@@ -30,10 +30,17 @@ The preview is written to `digest-preview.html`.
 Set these repository secrets:
 
 - `ANTHROPIC_API_KEY`
-- `RESEND_API_KEY`
 - `NEWSAPI_KEY`
+- `SMTP_USERNAME` - the Gmail address that sends the digest
+- `SMTP_PASSWORD` - a Google App Password, not your normal Google password
 
-The default sender is `udaythakran2@gmail.com`, formatted as `Uday's.Daily[Energy] <udaythakran2@gmail.com>`. Resend requires this sender address to be verified before real sends will work.
+The default sender is `udaythakran2@gmail.com`, formatted as `Uday's.Daily[Energy] <udaythakran2@gmail.com>`.
+
+Optional repository variables:
+
+- `SENDER_EMAIL` - defaults to `SMTP_USERNAME`
+- `SMTP_HOST` - defaults to `smtp.gmail.com`
+- `SMTP_PORT` - defaults to `587`
 
 The default recipients are:
 
@@ -46,10 +53,10 @@ Recurring delivery is intentionally commented out in `.github/workflows/newslett
 
 To send one sample from GitHub Actions:
 
-- Add the GitHub secrets and `SENDER_EMAIL` repository variable.
+- Add the GitHub secrets.
 - Open Actions -> `Uday's.Daily[Energy]` -> Run workflow.
 - Set `sample_data=true` and `send_email=true`.
 
-To preview without sending, run the same workflow with `send_email=false`; it will render `digest-preview.html` in the runner and stop before Resend.
+To preview without sending, run the same workflow with `send_email=false`; it will render `digest-preview.html` in the runner and stop before SMTP delivery.
 
 To enable recurring delivery after the sample is approved, uncomment the `schedule` block in `.github/workflows/newsletter.yml`. The workflow runs at both 11:00 and 12:00 UTC, then checks `America/New_York` locally and only sends when the local hour is 7. This keeps the digest at 7am ET across daylight saving changes.

@@ -1,10 +1,10 @@
-"""Email delivery through Resend."""
+"""Email delivery through SMTP."""
 
 from __future__ import annotations
 
+import smtplib
 from datetime import datetime
-
-import resend
+from email.message import EmailMessage
 
 from newsletter.config import NEWSLETTER_NAME, require_recipients
 
@@ -12,28 +12,33 @@ from newsletter.config import NEWSLETTER_NAME, require_recipients
 def send_email(
     html: str,
     *,
-    api_key: str | None,
     recipients: tuple[str, ...] | list[str],
     sender: str,
+    smtp_host: str,
+    smtp_port: int,
+    smtp_username: str | None,
+    smtp_password: str | None,
     dry_run: bool = False,
 ) -> dict:
     to = require_recipients(recipients)
     subject = f"{NEWSLETTER_NAME} - {datetime.now().strftime('%b %-d, %Y')}"
 
     if dry_run:
-        return {"dry_run": True, "subject": subject, "to": to}
+        return {"dry_run": True, "subject": subject, "to": to, "smtp_host": smtp_host}
 
-    if not api_key:
-        raise RuntimeError("RESEND_API_KEY is required unless DRY_RUN=true.")
-    if "digest@example.com" in sender:
-        raise RuntimeError("Set SENDER_EMAIL to a Resend-verified sender before sending.")
+    if not smtp_username or not smtp_password:
+        raise RuntimeError("SMTP_USERNAME and SMTP_PASSWORD are required unless DRY_RUN=true.")
 
-    resend.api_key = api_key
-    return resend.Emails.send(
-        {
-            "from": sender,
-            "to": to,
-            "subject": subject,
-            "html": html,
-        }
-    )
+    message = EmailMessage()
+    message["Subject"] = subject
+    message["From"] = sender
+    message["To"] = ", ".join(to)
+    message.set_content("This newsletter is best viewed as HTML.")
+    message.add_alternative(html, subtype="html")
+
+    with smtplib.SMTP(smtp_host, smtp_port, timeout=30) as server:
+        server.starttls()
+        server.login(smtp_username, smtp_password)
+        server.send_message(message)
+
+    return {"sent": True, "subject": subject, "to": to, "smtp_host": smtp_host}

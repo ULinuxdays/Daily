@@ -14,7 +14,7 @@ def _split_csv(value: str | None) -> list[str]:
 
 
 def _sender_email() -> str:
-    sender = os.getenv("SENDER_EMAIL") or os.getenv("RESEND_FROM") or "udaythakran2@gmail.com"
+    sender = os.getenv("SENDER_EMAIL") or os.getenv("SMTP_USERNAME") or "udaythakran2@gmail.com"
     if "<" in sender and ">" in sender:
         return sender
     return f"{NEWSLETTER_NAME} <{sender}>"
@@ -79,8 +79,11 @@ WEB_SEARCH_QUERIES: tuple[str, ...] = (
 @dataclass(frozen=True)
 class Settings:
     anthropic_api_key: str | None = field(default_factory=lambda: os.getenv("ANTHROPIC_API_KEY"))
-    resend_api_key: str | None = field(default_factory=lambda: os.getenv("RESEND_API_KEY"))
     newsapi_key: str | None = field(default_factory=lambda: os.getenv("NEWSAPI_KEY"))
+    smtp_host: str = field(default_factory=lambda: os.getenv("SMTP_HOST", "smtp.gmail.com"))
+    smtp_port: int = field(default_factory=lambda: int(os.getenv("SMTP_PORT", "587")))
+    smtp_username: str | None = field(default_factory=lambda: os.getenv("SMTP_USERNAME"))
+    smtp_password: str | None = field(default_factory=lambda: os.getenv("SMTP_PASSWORD"))
     recipient_emails: tuple[str, ...] = field(
         default_factory=lambda: tuple(_split_csv(os.getenv("RECIPIENT_EMAILS"))) or DEFAULT_RECIPIENT_EMAILS
     )

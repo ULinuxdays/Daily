@@ -46,8 +46,11 @@ jobs:
         if: env.SHOULD_SEND != 'false'
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           NEWSAPI_KEY: ${{ secrets.NEWSAPI_KEY }}
+          SMTP_HOST: ${{ vars.SMTP_HOST || 'smtp.gmail.com' }}
+          SMTP_PORT: ${{ vars.SMTP_PORT || '587' }}
+          SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
           SENDER_EMAIL: ${{ vars.SENDER_EMAIL }}
           SAMPLE_DATA: ${{ github.event_name == 'workflow_dispatch' && inputs.sample_data && 'true' || 'false' }}
           DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && !inputs.send_email && 'true' || 'false' }}

@@ -53,9 +53,12 @@ def main() -> None:
 
     result = send_email(
         html,
-        api_key=settings.resend_api_key,
         recipients=settings.recipient_emails,
         sender=settings.sender_email,
+        smtp_host=settings.smtp_host,
+        smtp_port=settings.smtp_port,
+        smtp_username=settings.smtp_username,
+        smtp_password=settings.smtp_password,
         dry_run=settings.dry_run,
     )
     print(f"send result: {result}")
