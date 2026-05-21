@@ -1,0 +1,18 @@
+.venv/
+__pycache__/
+*.pyc
+digest-preview.html
+.env
+
+# Local assistant workspace files; do not publish these to the newsletter repo.
+AGENTS.md
+BOOTSTRAP.md
+HEARTBEAT.md
+IDENTITY.md
+MEMORY.md
+SOUL.md
+TOOLS.md
+USER.md
+.openclaw/
+skills/
+memory/
