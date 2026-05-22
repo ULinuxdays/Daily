@@ -1,11 +1,9 @@
-name: "Uday's.Daily[Energy]"
+name: "Uday's.Daily Newsletters"
 
 on:
-  # Recurring delivery is intentionally off until the manual sample send is approved.
-  # To enable 7am ET daily delivery, uncomment the schedule block below.
-  # schedule:
-  #   - cron: "0 11 * * *"
-  #   - cron: "0 12 * * *"
+  # 7:00 AM Asia/Kolkata daily. GitHub Actions cron is UTC.
+  schedule:
+    - cron: "30 1 * * *"
   workflow_dispatch:
     inputs:
       sample_data:
@@ -18,10 +16,22 @@ on:
         required: true
         type: boolean
         default: false
+      profile:
+        description: "Newsletter profile to run"
+        required: true
+        type: choice
+        options:
+          - both
+          - energy
+          - ai
+        default: both
 
 jobs:
   send-newsletter:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        profile: [energy, ai]
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -34,17 +44,16 @@ jobs:
       - name: Install dependencies
         run: pip install -r newsletter/requirements.txt
 
-      - name: Keep schedule at 7am America/New_York
+      - name: Confirm scheduled India-time delivery
         if: github.event_name == 'schedule'
         run: |
-          if [ "$(TZ=America/New_York date +%H)" != "07" ]; then
-            echo "Not 7am ET; skipping duplicate UTC cron."
-            echo "SHOULD_SEND=false" >> "$GITHUB_ENV"
-          fi
+          echo "Scheduled for 7:00 AM Asia/Kolkata."
+          TZ=Asia/Kolkata date
 
       - name: Send digest
-        if: env.SHOULD_SEND != 'false'
+        if: github.event_name != 'workflow_dispatch' || inputs.profile == 'both' || inputs.profile == matrix.profile
         env:
+          NEWSLETTER_PROFILE: ${{ matrix.profile }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           NEWSAPI_KEY: ${{ secrets.NEWSAPI_KEY }}
           SMTP_HOST: ${{ vars.SMTP_HOST || 'smtp.gmail.com' }}

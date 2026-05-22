@@ -8,7 +8,7 @@ from urllib.parse import quote_plus
 import feedparser
 import requests
 
-from newsletter.config import ACADEMIC_QUERIES
+from newsletter.config import NewsletterProfile, get_profile
 from newsletter.models import Item
 
 
@@ -21,9 +21,10 @@ def _parse_arxiv_time(value: str | None) -> datetime | None:
         return None
 
 
-def fetch_arxiv(max_results_per_query: int = 8) -> list[Item]:
+def fetch_arxiv(profile: NewsletterProfile | None = None, max_results_per_query: int = 8) -> list[Item]:
+    profile = profile or get_profile()
     items: list[Item] = []
-    for query in ACADEMIC_QUERIES:
+    for query in profile.academic_queries:
         url = (
             "https://export.arxiv.org/api/query"
             f"?search_query={quote_plus(query)}&start=0&max_results={max_results_per_query}"
@@ -48,7 +49,7 @@ def fetch_arxiv(max_results_per_query: int = 8) -> list[Item]:
                     source="arXiv",
                     published_at=_parse_arxiv_time(entry.get("published")),
                     summary=" ".join((entry.get("summary") or "").split()),
-                    section_hint="academic_spotlight",
+                    section_hint="technical_development" if profile.key == "ai" else "academic_spotlight",
                     authors=[author.get("name", "") for author in entry.get("authors", []) if author.get("name")],
                     metadata={"query": query},
                 )
@@ -56,12 +57,12 @@ def fetch_arxiv(max_results_per_query: int = 8) -> list[Item]:
     return items
 
 
-def fetch_semantic_scholar(days_back: int = 7, limit: int = 15) -> list[Item]:
+def fetch_semantic_scholar(days_back: int = 7, limit: int = 15, profile: NewsletterProfile | None = None) -> list[Item]:
+    profile = profile or get_profile()
     cutoff = datetime.now(timezone.utc) - timedelta(days=days_back)
-    queries = ("energy systems", "power grid optimization", "battery storage renewable energy")
     items: list[Item] = []
 
-    for query in queries:
+    for query in profile.semantic_scholar_queries:
         response = requests.get(
             "https://api.semanticscholar.org/graph/v1/paper/search",
             params={
@@ -93,7 +94,7 @@ def fetch_semantic_scholar(days_back: int = 7, limit: int = 15) -> list[Item]:
                     source="Semantic Scholar",
                     published_at=published_at,
                     summary=(paper.get("abstract") or "").strip(),
-                    section_hint="academic_spotlight",
+                    section_hint="technical_development" if profile.key == "ai" else "academic_spotlight",
                     authors=[author.get("name", "") for author in paper.get("authors", []) if author.get("name")],
                     score=float(paper.get("citationCount") or 0),
                     metadata={"query": query, "citation_count": paper.get("citationCount") or 0},
@@ -102,12 +103,13 @@ def fetch_semantic_scholar(days_back: int = 7, limit: int = 15) -> list[Item]:
     return items
 
 
-def fetch_openalex(days_back: int = 7, limit: int = 12) -> list[Item]:
+def fetch_openalex(days_back: int = 7, limit: int = 12, profile: NewsletterProfile | None = None) -> list[Item]:
+    profile = profile or get_profile()
     from_date = (datetime.now(timezone.utc) - timedelta(days=days_back)).date().isoformat()
     response = requests.get(
         "https://api.openalex.org/works",
         params={
-            "search": "energy systems renewable grid storage",
+            "search": profile.openalex_search,
             "filter": f"from_publication_date:{from_date},is_oa:true",
             "sort": "cited_by_count:desc",
             "per-page": limit,
@@ -144,7 +146,7 @@ def fetch_openalex(days_back: int = 7, limit: int = 12) -> list[Item]:
                 source="OpenAlex",
                 published_at=published_at,
                 summary=(work.get("abstract_inverted_index") and "Open-access paper indexed by OpenAlex.") or "",
-                section_hint="academic_spotlight",
+                section_hint="technical_development" if profile.key == "ai" else "academic_spotlight",
                 authors=authors,
                 score=float(work.get("cited_by_count") or 0),
                 metadata={"citation_count": work.get("cited_by_count") or 0},
@@ -153,9 +155,14 @@ def fetch_openalex(days_back: int = 7, limit: int = 12) -> list[Item]:
     return items
 
 
-def fetch_academic(days_back: int = 7) -> list[Item]:
+def fetch_academic(days_back: int = 7, profile: NewsletterProfile | None = None) -> list[Item]:
+    profile = profile or get_profile()
     items: list[Item] = []
-    for fetcher in (fetch_arxiv, lambda: fetch_semantic_scholar(days_back), lambda: fetch_openalex(days_back)):
+    for fetcher in (
+        lambda: fetch_arxiv(profile),
+        lambda: fetch_semantic_scholar(days_back, profile=profile),
+        lambda: fetch_openalex(days_back, profile=profile),
+    ):
         try:
             items.extend(fetcher())
         except Exception as exc:  # noqa: BLE001 - fetchers should fail independently.

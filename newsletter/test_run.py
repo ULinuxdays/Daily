@@ -23,10 +23,10 @@ def main() -> None:
     settings = Settings()
     import os
 
-    items = sample_items() if os.getenv("SAMPLE_DATA", "").lower() in {"1", "true", "yes"} else collect_items(settings)
-    sections = curate_with_claude(items, settings.anthropic_api_key)
-    html = render_digest(sections)
-    path = Path("digest-preview.html")
+    items = sample_items(settings.profile) if os.getenv("SAMPLE_DATA", "").lower() in {"1", "true", "yes"} else collect_items(settings)
+    sections = curate_with_claude(items, settings.anthropic_api_key, settings.profile)
+    html = render_digest(sections, profile=settings.profile)
+    path = Path(f"digest-preview-{settings.profile.key}.html")
     path.write_text(html, encoding="utf-8")
     print(f"Fetched {len(items)} candidate items")
     for section, rows in sections.items():

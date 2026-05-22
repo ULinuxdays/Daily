@@ -8,7 +8,7 @@ from email.utils import parsedate_to_datetime
 import feedparser
 import requests
 
-from newsletter.config import RSS_FEEDS, TOPIC_KEYWORDS
+from newsletter.config import NewsletterProfile, get_profile
 from newsletter.models import Item
 
 
@@ -27,8 +27,18 @@ def _parse_date(entry: dict) -> datetime | None:
     return None
 
 
-def _section_for(source: str, text: str) -> str:
+def _section_for(profile: NewsletterProfile, source: str, text: str) -> str:
     lower = f"{source} {text}".lower()
+    if profile.key == "ai":
+        if any(term in lower for term in ("regulation", "regulator", "government", "policy", "law", "nist", "eu ai act", "white house", "senate")):
+            return "governance"
+        if any(term in lower for term in ("ethic", "bias", "fairness", "responsible", "moral", "philosophy", "rights")):
+            return "ai_ethics"
+        if any(term in lower for term in ("existential", "x-risk", "xrisk", "safety", "alignment", "frontier risk", "eval", "biosecurity", "catastrophic")):
+            return "xrisk_management"
+        if any(term in lower for term in ("funding", "investment", "invests", "acquisition", "revenue", "valuation", "startup", "chip", "compute", "data center")):
+            return "business"
+        return "technical_development"
     if any(term in lower for term in ("eia", "commodity", "market", "prices", "oil", "gas", "lng")):
         return "data_markets"
     if any(term in lower for term in ("policy", "regulation", "doe", "iea", "tax credit", "permitting")):
@@ -36,11 +46,12 @@ def _section_for(source: str, text: str) -> str:
     return "top_stories"
 
 
-def fetch_rss(days_back: int = 2, max_items_per_source: int = 12) -> list[Item]:
+def fetch_rss(days_back: int = 2, max_items_per_source: int = 12, profile: NewsletterProfile | None = None) -> list[Item]:
+    profile = profile or get_profile()
     cutoff = datetime.now(timezone.utc) - timedelta(days=days_back)
     items: list[Item] = []
 
-    for source, url in RSS_FEEDS.items():
+    for source, url in profile.rss_feeds.items():
         try:
             response = requests.get(url, timeout=20, headers={"User-Agent": "energy-digest/1.0"})
             response.raise_for_status()
@@ -60,7 +71,7 @@ def fetch_rss(days_back: int = 2, max_items_per_source: int = 12) -> list[Item]:
 
             summary = (entry.get("summary") or entry.get("description") or "").strip()
             searchable = f"{title} {summary}".lower()
-            if not any(keyword in searchable for keyword in TOPIC_KEYWORDS):
+            if not any(keyword in searchable for keyword in profile.topic_keywords):
                 continue
 
             items.append(
@@ -70,7 +81,7 @@ def fetch_rss(days_back: int = 2, max_items_per_source: int = 12) -> list[Item]:
                     source=source,
                     published_at=published_at,
                     summary=summary,
-                    section_hint=_section_for(source, searchable),
+                    section_hint=_section_for(profile, source, searchable),
                 )
             )
 

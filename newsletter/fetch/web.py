@@ -4,13 +4,18 @@ from __future__ import annotations
 
 import json
 
-from newsletter.config import WEB_SEARCH_QUERIES
+from newsletter.config import NewsletterProfile, get_profile
 from newsletter.models import Item
 
 
-def fetch_web(anthropic_api_key: str | None, max_results: int = 6) -> list[Item]:
+def fetch_web(
+    anthropic_api_key: str | None,
+    max_results: int = 6,
+    profile: NewsletterProfile | None = None,
+) -> list[Item]:
     if not anthropic_api_key:
         return []
+    profile = profile or get_profile()
 
     try:
         from anthropic import Anthropic
@@ -18,12 +23,26 @@ def fetch_web(anthropic_api_key: str | None, max_results: int = 6) -> list[Item]
         return []
 
     client = Anthropic(api_key=anthropic_api_key)
-    prompt = (
-        "Find current, high-impact energy sector news from the last 48 hours. "
-        "Prioritize renewable power, grid, storage, policy, and market-moving items. "
-        "Return only JSON: an array of objects with title, url, source, summary, section_hint. "
-        f"Search themes: {', '.join(WEB_SEARCH_QUERIES)}"
-    )
+    if profile.key == "ai":
+        section_names = ", ".join(profile.sections)
+        prompt = (
+            "Find current, high-impact AI developments from the last 48 hours. "
+            "Cover governance and government regulation, technical research advances, AI ethics, "
+            "existential-risk analysis and management, and business/investment activity. "
+            "Return only JSON: an array of objects with title, url, source, summary, section_hint. "
+            f"section_hint must be one of: {section_names}. "
+            f"Search themes: {', '.join(profile.web_search_queries)}"
+        )
+    else:
+        prompt = (
+            "Find current, high-impact energy sector news from the last 48 hours. "
+            "Prioritize renewable power, grid, storage, policy, market-moving items, and global business activity. "
+            "Include deals and investments: financings, acquisitions, PPAs, project finance, joint ventures, "
+            "offtake agreements, and strategic capital allocation across regions. "
+            "Return only JSON: an array of objects with title, url, source, summary, section_hint. "
+            "Use section_hint='business_deals' for deals, investments, M&A, and project-finance items. "
+            f"Search themes: {', '.join(profile.web_search_queries)}"
+        )
 
     try:
         response = client.messages.create(
@@ -64,4 +83,3 @@ def fetch_web(anthropic_api_key: str | None, max_results: int = 6) -> list[Item]
             )
         )
     return items
-
